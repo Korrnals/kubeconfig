@@ -24,3 +24,8 @@ go.work
 gotestbox
 
 **.go.*
+
+kubeconfig
+kubeconfig-linux-amd64
+kubeconfig-darwin-amd64
+kubeconfig-darwin-arm64
