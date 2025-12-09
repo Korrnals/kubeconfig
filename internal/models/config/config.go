@@ -1,12 +1,5 @@
 package config
 
-import (
-	"fmt"
-	"os"
-
-	"gopkg.in/yaml.v3"
-)
-
 // Структура KubeConfig для представления конфигурации Kubernetes
 type KubeConfig struct {
 	APIVersion    	string            `yaml:"apiVersion"`
@@ -54,38 +47,105 @@ type UserEntry struct {
 // ------------------------------------------------------- //
 // Методы структур можно добавлять здесь при необходимости //
 
-// Конструктор KubeConfig
+// Конструктор NewKubeConfig - создаёт новый пустой KubeConfig и возвращает указатель на него.
+// Возвращает указатель, чтобы избежать копирования структуры.
 func NewKubeConfig() *KubeConfig {
-	return &KubeConfig{}
+    return &KubeConfig{
+        APIVersion: "v1",
+        Kind:       "Config",
+        // Можно задать дефолтные значения, если нужно
+        Preferences: make(map[string]any),
+        Clusters:    []ClusterEntry{},
+        Contexts:    []ContextEntry{},
+        Users:       []UserEntry{},
+    }
 }
 
 // Валидатор конфигурации Kubernetes
-func (cfg *KubeConfig) ValidateKubeConfig() error {
-	// Пример простой валидации: проверка наличия кластеров, контекстов и пользователей
-	if len(cfg.Clusters) == 0 {
-		return fmt.Errorf("no clusters defined in kubeconfig")
+// TODO: Пересмотреть необходимость данного метода, и если да - то необходимо переработать логику
+// func (cfg *KubeConfig) ValidateKubeConfig(file string) error {
+// 	// Пример простой валидации: проверка наличия кластеров, контекстов и пользователей
+// 	if len(cfg.Clusters) == 0 {
+// 		return fmt.Errorf("no clusters defined in kubeconfig")
+// 	}
+// 	if len(cfg.Contexts) == 0 {
+// 		return fmt.Errorf("no contexts defined in kubeconfig")
+// 	}
+// 	if len(cfg.Users) == 0 {
+// 		return fmt.Errorf("no users defined in kubeconfig")
+// 	}
+// 	if cfg.CurrentContext == "" {
+// 		return fmt.Errorf("current-context is not set in kubeconfig")
+// 	}
+// 	return nil
+// }
+
+// Метод Merg - для объединения двух конфигураций Kubernetes
+func (cfg *KubeConfig) Merg(other *KubeConfig) {
+	cfg.mergClusters(other.Clusters)
+	cfg.mergeContexts(other.Contexts)
+	cfg.mergeUsers(other.Users)
+	if other.CurrentContext != "" {
+		cfg.CurrentContext = other.CurrentContext
 	}
-	if len(cfg.Contexts) == 0 {
-		return fmt.Errorf("no contexts defined in kubeconfig")
-	}
-	if len(cfg.Users) == 0 {
-		return fmt.Errorf("no users defined in kubeconfig")
-	}
-	if cfg.CurrentContext == "" {
-		return fmt.Errorf("current-context is not set in kubeconfig")
-	}
-	return nil
 }
 
-// Функция PrettyYAML - для форматирования и вывода конфигурации Kubernetes
-func (cfg *KubeConfig) PrettyYAML() error {
-	enc := yaml.NewEncoder(os.Stdout)
-	enc.SetIndent(2)
-	err := enc.Encode(cfg)
-	if err != nil {
-		return err
+// Метод mergeClusters - для слияния кластеров
+func (cfg *KubeConfig) mergClusters(from []ClusterEntry) {
+	// Проходим по каждому кластеру из другой конфигурации
+	for _, NewCluster := range from {
+		exists := false
+		// Если кластер уже существует, перезаписываем его
+		for i, c := range cfg.Clusters {
+			if c.Name == NewCluster.Name {
+				cfg.Clusters[i] = NewCluster // перезаписываем
+				exists = true
+				break
+			}
+		}
+		// Если кластер не существует, добавляем его
+		if !exists {
+			cfg.Clusters = append(cfg.Clusters, NewCluster)
+		}
 	}
-	defer enc.Close()
+}
 
-	return nil
+// Метод mergeContexts - для слияния контекстов
+func (cfg *KubeConfig) mergeContexts(from []ContextEntry) {
+	// Проходим по каждому контексту из другой конфигурации
+	for _, NewContext := range from {
+		exists := false
+		// Если контекст уже существует, перезаписываем его
+		for i, c := range cfg.Contexts {
+			if c.Name == NewContext.Name {
+				cfg.Contexts[i] = NewContext // перезаписываем
+				exists = true
+				break
+			}
+		}
+		// Если контекст не существует, добавляем его
+		if !exists {
+			cfg.Contexts = append(cfg.Contexts, NewContext)
+		}
+	}
+}
+
+// Метод mergeUsers - для слияния пользователей
+func (cfg *KubeConfig) mergeUsers(from []UserEntry) {
+	// Проходим по каждому пользователю из другой конфигурации
+	for _, NewUser := range from {
+		exists := false
+		// Если контекст уже существует, перезаписываем его
+		for i, c := range cfg.Users {
+			if c.Name == NewUser.Name {
+				cfg.Users[i] = NewUser // перезаписываем
+				exists = true
+				break
+			}
+		}
+		// Если контекст не существует, добавляем его
+		if !exists {
+			cfg.Users = append(cfg.Users, NewUser)
+		}
+	}
 }
